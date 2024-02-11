@@ -54,6 +54,9 @@ NET_CONFIG = $(SNO_DIR)/net.xml
 
 NET_NAME ?= test-net
 NET_UUID ?= a29bce40-ce15-43c8-9142-fd0a3cc37f9a
+NET_BRIDGE_NAME ?= tt0
+NET_MAC ?= 52:54:00:e0:8d:fe
+NET_PREFIX ?= $(shell echo $(MACHINE_NETWORK) | cut -d . -f 1-3)
 VM_NAME ?= sno1
 VOL_NAME = $(VM_NAME).qcow2
 POOL ?= default
@@ -132,9 +135,12 @@ $(NET_CONFIG): $(NET_CONFIG_TEMPLATE)
 	    -e 's|REPLACE_NET_UUID|$(NET_UUID)|' \
 	    -e 's|CLUSTER_NAME|$(CLUSTER_NAME)|' \
 	    -e 's|BASE_DOMAIN|$(BASE_DOMAIN)|' \
-		-e 's/REPLACE_HOST_NAME/$(VM_NAME)/' \
-		-e 's/REPLACE_HOST_MAC/$(HOST_MAC)/' \
-		-e 's/REPLACE_HOST_IP/$(HOST_IP)/' \
+	    -e 's/REPLACE_HOST_NAME/$(VM_NAME)/' \
+	    -e 's/REPLACE_HOST_MAC/$(HOST_MAC)/' \
+	    -e 's/REPLACE_HOST_IP/$(HOST_IP)/' \
+	    -e 's/REPLACE_NET_BRIDGE_NAME/$(NET_BRIDGE_NAME)/' \
+	    -e 's/REPLACE_NET_MAC/$(NET_MAC)/' \
+	    -e 's/REPLACE_NET_PREFIX/$(NET_PREFIX)/g' \
 	    $(NET_CONFIG_TEMPLATE) > $@
 
 network: $(NET_CONFIG)
