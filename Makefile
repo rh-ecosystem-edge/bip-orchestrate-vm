@@ -133,14 +133,10 @@ $(INSTALL_CONFIG): $(INSTALL_CONFIG_TEMPLATE) checkenv $(SSH_KEY_PUB_PATH)
 $(NET_CONFIG): $(NET_CONFIG_TEMPLATE)
 	sed -e 's/REPLACE_NET_NAME/$(NET_NAME)/' \
 	    -e 's|REPLACE_NET_UUID|$(NET_UUID)|' \
-	    -e 's|CLUSTER_NAME|$(CLUSTER_NAME)|' \
-	    -e 's|BASE_DOMAIN|$(BASE_DOMAIN)|' \
-	    -e 's/REPLACE_HOST_NAME/$(VM_NAME)/' \
-	    -e 's/REPLACE_HOST_MAC/$(HOST_MAC)/' \
-	    -e 's/REPLACE_HOST_IP/$(HOST_IP)/' \
 	    -e 's/REPLACE_NET_BRIDGE_NAME/$(NET_BRIDGE_NAME)/' \
 	    -e 's/REPLACE_NET_MAC/$(NET_MAC)/' \
 	    -e 's/REPLACE_NET_PREFIX/$(NET_PREFIX)/g' \
+	    -e 's|BASE_DOMAIN|$(BASE_DOMAIN)|' \
 	    $(NET_CONFIG_TEMPLATE) > $@
 
 network: $(NET_CONFIG)
@@ -163,7 +159,7 @@ $(INSTALL_CONFIG_IN_WORKDIR): $(INSTALLER_WORKDIR) $(INSTALL_CONFIG)
 	cp $(INSTALL_CONFIG) $@
 
 # Original CoreOS ISO
-$(INSTALLER_ISO_PATH): 
+$(INSTALLER_ISO_PATH):
 	$(SNO_DIR)/download_live_iso.sh $@
 
 # Get the openshift-installer from the release image

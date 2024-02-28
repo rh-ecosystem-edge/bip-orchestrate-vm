@@ -5,20 +5,11 @@
   <bridge name='REPLACE_NET_BRIDGE_NAME' stp='on' delay='0'/>
   <mtu size='1500'/>
   <mac address='REPLACE_NET_MAC'/>
-  <domain name='CLUSTER_NAME.BASE_DOMAIN' localOnly='yes'/>
-  <dns enable='yes'>
-    <host ip='REPLACE_HOST_IP'>
-      <hostname>api.CLUSTER_NAME.BASE_DOMAIN</hostname>
-      <hostname>api-int.CLUSTER_NAME.BASE_DOMAIN</hostname>
-      <hostname>console-openshift-console.apps.CLUSTER_NAME.BASE_DOMAIN</hostname>
-      <hostname>oauth-openshift.apps.CLUSTER_NAME.BASE_DOMAIN</hostname>
-      <hostname>canary-openshift-ingress-canary.apps.CLUSTER_NAME.BASE_DOMAIN</hostname>
-    </host>
-  </dns>
+  <domain name='BASE_DOMAIN' localOnly='yes'/>
+  <dns enable='yes'/>
   <ip family='ipv4' address='REPLACE_NET_PREFIX.1' prefix='24'>
     <dhcp>
       <range start='REPLACE_NET_PREFIX.2' end='REPLACE_NET_PREFIX.254'/>
-      <host mac='REPLACE_HOST_MAC' name='REPLACE_HOST_NAME' ip='REPLACE_HOST_IP'/>
     </dhcp>
   </ip>
 </network>
