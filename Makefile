@@ -32,9 +32,6 @@ INSTALLER_ISO_PATH = $(SNO_DIR)/installer-image.iso
 INSTALLER_ISO_PATH_SNO = $(SNO_DIR)/installer-SNO-image.iso
 INSTALLER_ISO_PATH_SNO_IN_LIBVIRT = $(LIBVIRT_ISO_PATH)/installer-SNO-image.iso
 
-MACHINE_NETWORK ?= 192.168.126.0/24
-CLUSTER_NETWORK ?= 10.128.0.0/14
-CLUSTER_SVC_NETWORK ?= 172.30.0.0/16
 CLUSTER_NAME ?= test-cluster
 BASE_DOMAIN ?= redhat.com
 RAM_MB ?= 16384
@@ -54,6 +51,7 @@ AGENT_CONFIG_IN_WORKDIR = $(INSTALLER_WORKDIR)/agent-config.yaml
 NET_CONFIG_TEMPLATE = $(SNO_DIR)/net.xml.template
 NET_CONFIG = $(SNO_DIR)/net.xml
 
+NET_TYPE ?= ipv4
 NET_NAME ?= test-net
 NET_UUID ?= a29bce40-ce15-43c8-9142-fd0a3cc37f9a
 NET_BRIDGE_NAME ?= tt0
@@ -70,9 +68,35 @@ SSH_FLAGS = -o IdentityFile=$(SSH_KEY_PRIV_PATH) \
  			-o UserKnownHostsFile=/dev/null \
  			-o StrictHostKeyChecking=no
 
-HOST_IP ?= 192.168.126.10
 HOST_MAC ?= 52:54:00:ee:42:e1
 SSH_HOST = core@$(HOST_IP)
+
+ifeq ($(NET_TYPE),ipv4)
+	HOST_IP ?= 192.168.126.10
+	MACHINE_NETWORK ?= 192.168.126.0/24
+	CLUSTER_NETWORK ?= 10.128.0.0/14
+	CLUSTER_SVC_NETWORK ?= 172.30.0.0/16
+	HOST_PREFIX ?= 23
+	MACHINE_NETWORK_PREFIX = $(shell echo $(MACHINE_NETWORK) | rev | cut -d . -f 2- | rev)
+	NET_ADDRESS = $(MACHINE_NETWORK_PREFIX).1
+	NET_RANGE_START = $(MACHINE_NETWORK_PREFIX).2
+	NET_RANGE_END = $(MACHINE_NETWORK_PREFIX).200
+else
+	HOST_IP ?= fdfa:bada:faba:da::10
+	MACHINE_NETWORK ?= fdfa:bada:faba:da::/64
+	CLUSTER_NETWORK ?= fd01::/48
+	CLUSTER_SVC_NETWORK ?= fd02::/112
+	HOST_PREFIX ?= 64
+	MACHINE_NETWORK_PREFIX = $(shell echo $(MACHINE_NETWORK) | rev | cut -d : -f 2- | rev)
+	NET_ADDRESS = $(MACHINE_NETWORK_PREFIX):1
+	NET_RANGE_START = $(MACHINE_NETWORK_PREFIX):2
+	NET_RANGE_END = $(MACHINE_NETWORK_PREFIX):fff0
+	PROXY = http://[$(NET_ADDRESS)]:3128
+	NOPROXY = .$(CLUSTER_NAME).$(BASE_DOMAIN),$(MACHINE_NETWORK),::1
+	PROXY_TEMPLATE = $(INSTALL_CONFIG_TEMPLATE).proxy
+endif
+
+NET_MASK = $(shell echo $(MACHINE_NETWORK) | cut -d / -f 2)
 
 $(SSH_KEY_DIR):
 	@echo Creating SSH key dir
@@ -121,33 +145,38 @@ destroy-libvirt-net:
 
 # Render the install config from the template with the correct pull secret and SSH key
 $(INSTALL_CONFIG): $(INSTALL_CONFIG_TEMPLATE) checkenv $(SSH_KEY_PUB_PATH)
-	sed -e 's|YOUR_PULL_SECRET|$(PULL_SECRET)|' \
-	    -e 's|YOUR_SSH_KEY|$(shell cat $(SSH_KEY_PUB_PATH))|' \
-	    -e 's|INSTALLATION_DISK|$(INSTALLATION_DISK)|' \
-	    -e 's|CLUSTER_NAME|$(CLUSTER_NAME)|' \
-	    -e 's|BASE_DOMAIN|$(BASE_DOMAIN)|' \
-	    -e 's|CLUSTER_NETWORK|$(CLUSTER_NETWORK)|' \
-	    -e 's|MACHINE_NETWORK|$(MACHINE_NETWORK)|' \
-	    -e 's|CLUSTER_SVC_NETWORK|$(CLUSTER_SVC_NETWORK)|' \
-	    $(INSTALL_CONFIG_TEMPLATE) > $(INSTALL_CONFIG)
+	cat $< $(PROXY_TEMPLATE) | \
+		YOUR_PULL_SECRET='$(PULL_SECRET)' \
+		YOUR_SSH_KEY='$(shell cat $(SSH_KEY_PUB_PATH))' \
+		INSTALLATION_DISK=$(INSTALLATION_DISK) \
+		CLUSTER_NAME=$(CLUSTER_NAME) \
+		BASE_DOMAIN=$(BASE_DOMAIN) \
+		CLUSTER_NETWORK=$(CLUSTER_NETWORK) \
+		HOST_PREFIX=$(HOST_PREFIX) \
+		MACHINE_NETWORK=$(MACHINE_NETWORK) \
+		CLUSTER_SVC_NETWORK=$(CLUSTER_SVC_NETWORK) \
+		PROXY="$(PROXY)" \
+		NOPROXY="$(NOPROXY)" \
+			envsubst > $@
 
 # Render the libvirt net config file with the network name and host IP
 $(NET_CONFIG): $(NET_CONFIG_TEMPLATE)
-	sed -e 's/REPLACE_NET_NAME/$(NET_NAME)/' \
-	    -e 's|REPLACE_NET_UUID|$(NET_UUID)|' \
-	    -e 's/REPLACE_NET_BRIDGE_NAME/$(NET_BRIDGE_NAME)/' \
-	    -e 's/REPLACE_NET_MAC/$(NET_MAC)/' \
-	    -e 's/REPLACE_NET_PREFIX/$(NET_PREFIX)/g' \
-	    -e 's|BASE_DOMAIN|$(BASE_DOMAIN)|' \
-	    $(NET_CONFIG_TEMPLATE) > $@
+	NET_TYPE=$(NET_TYPE) \
+	NET_NAME=$(NET_NAME) \
+	NET_UUID=$(NET_UUID) \
+	NET_BRIDGE_NAME=$(NET_BRIDGE_NAME) \
+	NET_MAC=$(NET_MAC) \
+	NET_ADDRESS=$(NET_ADDRESS) \
+	NET_MASK=$(NET_MASK) \
+	NET_RANGE_START=$(NET_RANGE_START) \
+	NET_RANGE_END=$(NET_RANGE_END) \
+	BASE_DOMAIN=$(BASE_DOMAIN) \
+		envsubst < $(NET_CONFIG_TEMPLATE) > $@
 
 network: $(NET_CONFIG)
 	NET_NAME=$(NET_NAME) \
 	NET_UUID=$(NET_UUID) \
 	NET_XML=$(NET_CONFIG) \
-	HOST_IP=$(HOST_IP) \
-	CLUSTER_NAME=$(CLUSTER_NAME) \
-	BASE_DOMAIN=$(BASE_DOMAIN) \
 	$(SNO_DIR)/virt-create-net.sh
 
 # Create a working directory for the openshift-installer `--dir` parameter

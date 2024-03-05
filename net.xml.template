@@ -1,15 +1,15 @@
 <network>
-  <name>REPLACE_NET_NAME</name>
-  <uuid>REPLACE_NET_UUID</uuid>
+  <name>${NET_NAME}</name>
+  <uuid>${NET_UUID}</uuid>
   <forward mode='nat'/>
-  <bridge name='REPLACE_NET_BRIDGE_NAME' stp='on' delay='0'/>
+  <bridge name='${NET_BRIDGE_NAME}' stp='on' delay='0'/>
   <mtu size='1500'/>
-  <mac address='REPLACE_NET_MAC'/>
-  <domain name='BASE_DOMAIN' localOnly='yes'/>
+  <mac address='${NET_MAC}'/>
+  <domain name='${BASE_DOMAIN}' localOnly='yes'/>
   <dns enable='yes'/>
-  <ip family='ipv4' address='REPLACE_NET_PREFIX.1' prefix='24'>
+  <ip family='${NET_TYPE}' address='${NET_ADDRESS}' prefix='${NET_MASK}'>
     <dhcp>
-      <range start='REPLACE_NET_PREFIX.2' end='REPLACE_NET_PREFIX.254'/>
+      <range start='${NET_RANGE_START}' end='${NET_RANGE_END}'/>
     </dhcp>
   </ip>
 </network>

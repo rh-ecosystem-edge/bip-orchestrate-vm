@@ -1,0 +1,4 @@
+proxy:
+  httpProxy: "${PROXY}"
+  httpsProxy: "${PROXY}"
+  noProxy: "${NOPROXY}"
