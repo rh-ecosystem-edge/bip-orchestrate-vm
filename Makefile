@@ -39,6 +39,7 @@ CLUSTER_NAME ?= test-cluster
 BASE_DOMAIN ?= redhat.com
 RAM_MB ?= 16384
 CPU_CORE ?= 8
+DISK_GB ?= 130
 
 INSTALL_CONFIG_TEMPLATE = $(SNO_DIR)/install-config.yaml.template
 INSTALL_CONFIG = $(SNO_DIR)/install-config.yaml
@@ -236,7 +237,7 @@ start-iso-abi: $(ABI_ISO_PATH_IN_LIBVIRT) network destroy-libvirt-sno host-net-c
 	RHCOS_ISO=$(ABI_ISO_PATH_IN_LIBVIRT) \
 	VM_NAME=$(VM_NAME) \
 	NET_NAME=$(NET_NAME) \
-	DISK_GB=130 \
+	DISK_GB=$(DISK_GB) \
 	CPU_CORE=$(CPU_CORE) \
 	HOST_MAC=$(HOST_MAC) \
 	RAM_MB=$(RAM_MB) \
