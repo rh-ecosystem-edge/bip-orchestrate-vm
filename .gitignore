@@ -21,4 +21,3 @@
 /terraform/*/vsphere-vars.tf
 /terraform/*/.terraform*lock*
 /terraform/*/terraform.tfstate*
-/agent-config.yaml

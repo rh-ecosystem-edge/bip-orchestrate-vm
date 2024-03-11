@@ -40,6 +40,7 @@ BASE_DOMAIN ?= redhat.com
 RAM_MB ?= 16384
 CPU_CORE ?= 8
 DISK_GB ?= 130
+AGENT_CONFIG ?= agent-config.yaml
 
 INSTALL_CONFIG_TEMPLATE = $(SNO_DIR)/install-config.yaml.template
 INSTALL_CONFIG = $(SNO_DIR)/install-config.yaml
@@ -211,7 +212,7 @@ start-iso: $(INSTALLER_ISO_PATH_SNO_IN_LIBVIRT) network
 	POOL=$(POOL) \
 	$(SNO_DIR)/virt-install-sno-iso-ign.sh
 
-$(AGENT_CONFIG_IN_WORKDIR): agent-config.yaml $(INSTALLER_WORKDIR)
+$(AGENT_CONFIG_IN_WORKDIR): $(AGENT_CONFIG) $(INSTALLER_WORKDIR)
 	sudo cp $< $@
 
 # Generate an agent based ISO
