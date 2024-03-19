@@ -35,11 +35,18 @@ if [ -z ${NET_XML+x} ]; then
     exit 1
 fi
 
+NET_TYPE=$(cat ${NET_XML} | xargs -n1|grep family | cut -d = -f 2)
+[[ "$NET_TYPE" == "ipv6" ]] && default_dad=$(sysctl -n net.ipv6.conf.default.accept_dad)
+
 # Only create network if it does not exist
 if ! sudo virsh net-dumpxml $NET_NAME | grep -q "<uuid>$NET_UUID</uuid>"; then
+    # In IPV6 disable Duplicate Address Detection on the new interface
+    [[ "$NET_TYPE" == "ipv6" ]] && sudo sysctl -w net.ipv6.conf.default.accept_dad=0
     sudo virsh net-define "${NET_XML}"
     sudo virsh net-autostart $NET_NAME
     sudo virsh net-start $NET_NAME
+    # In IPV6 restore default accept_dad setting
+    [[ "$NET_TYPE" == "ipv6" ]] && sudo sysctl -w net.ipv6.conf.default.accept_dad=$default_dad
 fi
 
 echo -e "[main]\ndns=dnsmasq" | sudo tee /etc/NetworkManager/conf.d/bip.conf
