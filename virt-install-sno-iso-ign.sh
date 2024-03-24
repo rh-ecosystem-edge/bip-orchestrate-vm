@@ -35,7 +35,7 @@ nohup virt-install \
     --os-variant="${OS_VARIANT}" \
     --import \
     --network=network:"${NET_NAME}",mac="${HOST_MAC}" \
-    --graphics=none \
+    --graphics=${GRAPHICS} \
     --events on_reboot=restart \
     --cdrom "${RHCOS_ISO}" \
     --disk pool="${POOL}",size="${DISK_GB}" \
