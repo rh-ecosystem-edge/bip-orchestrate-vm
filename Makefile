@@ -75,17 +75,19 @@ HOST_IP ?= 192.168.126.10
 HOST_MAC ?= 52:54:00:ee:42:e1
 SSH_HOST = core@$(HOST_IP)
 
-$(SSH_KEY_DIR):
-	@echo Creating SSH key dir
-	mkdir $@
-
-$(SSH_KEY_PRIV_PATH): $(SSH_KEY_DIR)
+$(SSH_KEY_PRIV_PATH):
 	@echo "No private key $@ found, generating a private-public pair"
+	@mkdir -p $(SSH_KEY_DIR)
 	# -N "" means no password
 	ssh-keygen -f $@ -N ""
 	chmod 400 $@
 
 $(SSH_KEY_PUB_PATH): $(SSH_KEY_PRIV_PATH)
+	@if [ ! -e $(SSH_KEY_PUB_PATH) ]; then \
+		echo "SSH private key found, but no public key found on $(SSH_KEY_PUB_PATH)"; \
+		echo "Generating public SSH key using the private key $(SSH_KEY_PRIV_PATH) as a source"; \
+		ssh-keygen -f $(SSH_KEY_PRIV_PATH) -q -y > $(SSH_KEY_PUB_PATH); \
+	fi
 
 .PHONY: gather checkenv clean destroy-libvirt start-iso network ssh $(NET_CONFIG)
 
