@@ -24,4 +24,5 @@ sudo virsh net-update $NET_NAME $action ip-dhcp-host '<host mac="'$HOST_MAC'" na
 # Update dnsmasq configuration
 _dnsmasq_add_if_not_exists api.${CLUSTER_NAME}.${BASE_DOMAIN} ${HOST_IP}
 _dnsmasq_add_if_not_exists apps.${CLUSTER_NAME}.${BASE_DOMAIN} ${HOST_IP}
+_dnsmasq_add_if_not_exists ${HOST_NAME} ${HOST_IP}
 sudo systemctl reload NetworkManager.service
