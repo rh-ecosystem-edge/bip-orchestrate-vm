@@ -104,7 +104,7 @@ Automatic mode using Makefiles, currently supports SNO deployments on two virtua
     - Execute the openshift-installer `agent create image` command to generate the agent.iso.
     - Create a libvirt network & VM.
     - Boot the VM with that ISO.
-- You can now monitor the progress using `make ssh` and `journalctl -f -u assisted-service.service` or `kubectl --kubeconfig ./sno-workdir/auth/kubeconfig get clusterversion`.
+- You can now monitor the progress using `abi-wait-complete` or `make ssh` and `journalctl -f -u assisted-service.service` or `kubectl --kubeconfig ./sno-workdir/auth/kubeconfig get clusterversion`.
 
 # Other notes
 

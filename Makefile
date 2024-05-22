@@ -248,6 +248,11 @@ start-iso-abi: $(ABI_ISO_PATH_IN_LIBVIRT) network destroy-libvirt-sno host-net-c
 	RAM_MB=$(RAM_MB) \
 	$(SNO_DIR)/virt-install-sno-iso-ign.sh
 
+abi-wait-complete: $(INSTALLER_BIN)
+	INSTALLER_BIN=$(INSTALLER_BIN) \
+	INSTALLER_WORKDIR=$(INSTALLER_WORKDIR) \
+	$(SNO_DIR)/wait-abi-complete.sh
+
 # Configure dhcp and dns for host
 .PHONY: host-net-config
 host-net-config:
