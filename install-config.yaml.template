@@ -17,13 +17,12 @@ metadata:
   name: CLUSTER_NAME
 networking:
   clusterNetwork:
-  - cidr: CLUSTER_NETWORK
-    hostPrefix: 23
+CLUSTER_NETWORKS_YAML
   machineNetwork:
-  - cidr: MACHINE_NETWORK
+MACHINE_NETWORKS_YAML
   networkType: OVNKubernetes
   serviceNetwork:
-  - CLUSTER_SVC_NETWORK
+SERVICE_NETWORKS_YAML
 platform:
   none: {}
 BootstrapInPlace:

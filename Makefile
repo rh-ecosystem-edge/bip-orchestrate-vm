@@ -71,9 +71,37 @@ SSH_FLAGS = -o IdentityFile=$(SSH_KEY_PRIV_PATH) \
  			-o UserKnownHostsFile=/dev/null \
  			-o StrictHostKeyChecking=no
 
-HOST_IP ?= 192.168.126.10
+IP_STACK ?= v4
+
+# Per-family network inputs. Defaults keep legacy v4-only behavior.
+MACHINE_NETWORK_V4 ?= $(MACHINE_NETWORK)
+MACHINE_NETWORK_V6 ?=
+CLUSTER_NETWORK_V4 ?= $(CLUSTER_NETWORK)
+CLUSTER_NETWORK_V6 ?=
+CLUSTER_SVC_NETWORK_V4 ?= $(CLUSTER_SVC_NETWORK)
+CLUSTER_SVC_NETWORK_V6 ?=
+CLUSTER_NETWORK_HOST_PREFIX_V4 ?= 23
+CLUSTER_NETWORK_HOST_PREFIX_V6 ?= 64
+
+# Per-family host IPs. Defaults keep legacy v4-only behavior.
+HOST_IP_V4 ?= 192.168.126.10
+HOST_IP_V6 ?=
+
+# Derived primary/secondary from IP_STACK (v4|v6|v4v6|v6v4)
+STACK_PRIMARY_FAM = $(if $(filter v6 v6v4,$(IP_STACK)),V6,V4)
+STACK_SECONDARY_FAM = $(if $(filter v4v6,$(IP_STACK)),V6,$(if $(filter v6v4,$(IP_STACK)),V4,))
+
+HOST_IP_PRIMARY = $(HOST_IP_$(STACK_PRIMARY_FAM))
+HOST_IP_SECONDARY = $(if $(STACK_SECONDARY_FAM),$(HOST_IP_$(STACK_SECONDARY_FAM)),)
+
+MACHINE_NETWORK_PRIMARY = $(MACHINE_NETWORK_$(STACK_PRIMARY_FAM))
+MACHINE_NETWORK_SECONDARY = $(if $(STACK_SECONDARY_FAM),$(MACHINE_NETWORK_$(STACK_SECONDARY_FAM)),)
+
+ip_for_ssh = $(if $(findstring :,$(1)),[$(1)],$(1))
+
+HOST_IP ?= $(HOST_IP_PRIMARY)
 HOST_MAC ?= 52:54:00:ee:42:e1
-SSH_HOST = core@$(HOST_IP)
+SSH_HOST = core@$(call ip_for_ssh,$(HOST_IP_PRIMARY))
 
 $(SSH_KEY_PRIV_PATH):
 	@echo "No private key $@ found, generating a private-public pair"
@@ -125,31 +153,40 @@ destroy-libvirt-net:
 # Render the install config from the template with the correct pull secret and SSH key
 $(INSTALL_CONFIG): $(INSTALL_CONFIG_TEMPLATE) checkenv $(SSH_KEY_PUB_PATH)
 	$(info Generating $(INSTALL_CONFIG))
-	@sed -e 's|YOUR_PULL_SECRET|$(PULL_SECRET)|' \
-	    -e 's|YOUR_SSH_KEY|$(shell cat $(SSH_KEY_PUB_PATH))|' \
-	    -e 's|INSTALLATION_DISK|$(INSTALLATION_DISK)|' \
-	    -e 's|CLUSTER_NAME|$(CLUSTER_NAME)|' \
-	    -e 's|BASE_DOMAIN|$(BASE_DOMAIN)|' \
-	    -e 's|CLUSTER_NETWORK|$(CLUSTER_NETWORK)|' \
-	    -e 's|MACHINE_NETWORK|$(MACHINE_NETWORK)|' \
-	    -e 's|CLUSTER_SVC_NETWORK|$(CLUSTER_SVC_NETWORK)|' \
-	    $(INSTALL_CONFIG_TEMPLATE) > $(INSTALL_CONFIG)
+	@BASE_DOMAIN=$(BASE_DOMAIN) \
+	CLUSTER_NAME=$(CLUSTER_NAME) \
+	INSTALLATION_DISK=$(INSTALLATION_DISK) \
+	PULL_SECRET='$(PULL_SECRET)' \
+	SSH_KEY_PUB_PATH=$(SSH_KEY_PUB_PATH) \
+	IP_STACK=$(IP_STACK) \
+	CLUSTER_NETWORK_V4=$(CLUSTER_NETWORK_V4) \
+	CLUSTER_NETWORK_V6=$(CLUSTER_NETWORK_V6) \
+	CLUSTER_SVC_NETWORK_V4=$(CLUSTER_SVC_NETWORK_V4) \
+	CLUSTER_SVC_NETWORK_V6=$(CLUSTER_SVC_NETWORK_V6) \
+	MACHINE_NETWORK_V4=$(MACHINE_NETWORK_V4) \
+	MACHINE_NETWORK_V6=$(MACHINE_NETWORK_V6) \
+	CLUSTER_NETWORK_HOST_PREFIX_V4=$(CLUSTER_NETWORK_HOST_PREFIX_V4) \
+	CLUSTER_NETWORK_HOST_PREFIX_V6=$(CLUSTER_NETWORK_HOST_PREFIX_V6) \
+	python3 $(SNO_DIR)/render-install-config.py $(INSTALL_CONFIG_TEMPLATE) $(INSTALL_CONFIG)
 
 # Render the libvirt net config file with the network name and host IP
 $(NET_CONFIG): $(NET_CONFIG_TEMPLATE)
-	sed -e 's/REPLACE_NET_NAME/$(NET_NAME)/' \
-	    -e 's|REPLACE_NET_UUID|$(NET_UUID)|' \
-	    -e 's/REPLACE_NET_BRIDGE_NAME/$(NET_BRIDGE_NAME)/' \
-	    -e 's/REPLACE_NET_MAC/$(NET_MAC)/' \
-	    -e 's/REPLACE_NET_PREFIX/$(NET_PREFIX)/g' \
-	    -e 's|BASE_DOMAIN|$(BASE_DOMAIN)|' \
-	    $(NET_CONFIG_TEMPLATE) > $@
+	@NET_NAME=$(NET_NAME) \
+	NET_UUID=$(NET_UUID) \
+	NET_BRIDGE_NAME=$(NET_BRIDGE_NAME) \
+	NET_MAC=$(NET_MAC) \
+	BASE_DOMAIN=$(BASE_DOMAIN) \
+	IP_STACK=$(IP_STACK) \
+	MACHINE_NETWORK_V4=$(MACHINE_NETWORK_V4) \
+	MACHINE_NETWORK_V6=$(MACHINE_NETWORK_V6) \
+	python3 $(SNO_DIR)/render-net-xml.py $@
 
 network: $(NET_CONFIG)
 	NET_NAME=$(NET_NAME) \
 	NET_UUID=$(NET_UUID) \
 	NET_XML=$(NET_CONFIG) \
-	HOST_IP=$(HOST_IP) \
+	HOST_IP=$(HOST_IP_PRIMARY) \
+	HOST_IP_SECONDARY=$(HOST_IP_SECONDARY) \
 	CLUSTER_NAME=$(CLUSTER_NAME) \
 	BASE_DOMAIN=$(BASE_DOMAIN) \
 	$(SNO_DIR)/virt-create-net.sh
@@ -257,7 +294,8 @@ abi-wait-complete: $(INSTALLER_BIN)
 # Configure dhcp and dns for host
 .PHONY: host-net-config
 host-net-config:
-	HOST_IP=$(HOST_IP) \
+	HOST_IP=$(HOST_IP_PRIMARY) \
+	HOST_IP_SECONDARY=$(HOST_IP_SECONDARY) \
 	CLUSTER_NAME=$(CLUSTER_NAME) \
 	BASE_DOMAIN=$(BASE_DOMAIN) \
 	NET_NAME=$(NET_NAME) \
@@ -279,6 +317,6 @@ gather:
 	@echo If this fails, try killing running SSH agent instances. Installer will prefer those \
 over your explicitly provided key file
 	$(INSTALLER_BIN) gather bootstrap \
-	--bootstrap $(HOST_IP) \
-	--master $(HOST_IP) \
+	--bootstrap $(call ip_for_ssh,$(HOST_IP_PRIMARY)) \
+	--master $(call ip_for_ssh,$(HOST_IP_PRIMARY)) \
 	--key $(SSH_KEY_PRIV_PATH)
